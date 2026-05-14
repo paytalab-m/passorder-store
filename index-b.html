@@ -244,24 +244,26 @@
     background: var(--surface-soft);
     border-radius: 12px;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
   }
   .notice__icon {
     width: 18px;
     height: 18px;
     color: var(--orange);
     flex-shrink: 0;
+    margin-top: 3px;
   }
   .notice__text {
+    flex: 1;
     font-size: 13.5px;
     color: var(--ink-2);
     line-height: 1.65;
     font-weight: 600;
     letter-spacing: -0.2px;
     word-break: keep-all;
-    text-align: center;
+    text-align: left;
     margin: 0;
   }
   .notice--success .notice__icon { color: #16a34a; }
@@ -530,13 +532,14 @@
     font-size: 13.5px;
     font-weight: 600;
     letter-spacing: -0.3px;
-    padding: 12px 18px;
+    padding: 14px 22px;
     border-radius: 999px;
     z-index: 150;
     box-shadow: 0 8px 24px rgba(0, 26, 48, 0.25);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.25s, transform 0.25s;
+    white-space: nowrap;
   }
   .toast.--visible {
     opacity: 1;
@@ -1283,7 +1286,7 @@
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
           </svg>
           <p class="notice__text">
-            패스오더 도입을 요청한 고객들이 매장에 남긴 불편 사항입니다.<br>
+            패스오더 도입을 요청한 고객들이 매장에 남긴 불편 사항이며 사장님의 답변을 기다리고 있습니다.<br>
             답변을 남기시려면 사장님 본인 인증이 필요합니다.
           </p>
         </div>
@@ -1580,30 +1583,24 @@
 <script>
 (function () {
   // ===== 데이터 로깅 (Google Sheets) =====
-  const SHEETS_ENDPOINT = 'TODO_REPLACE_WITH_APPS_SCRIPT_URL';
+  const SHEETS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwaU5bzvKYvBUl57AsMZzV4jydJRfnq6W0k_m6WoR7TfY9-Z-aO4aDuOqefl8a71144bg/exec';
+  const VARIANT = 'B';
 
   const sessionId = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
   const urlParams = new URLSearchParams(window.location.search);
   const pageEnterTime = Date.now();
   let authSuccessTime = null;
-
-  function getCommonMeta() {
-    return {
-      event_timestamp: new Date().toISOString(),
-      store_identifier: urlParams.get('store') || '',
-      complaint_token: urlParams.get('token') || '',
-      session_id: sessionId,
-      variant: urlParams.get('variant') || 'B',
-      user_agent: navigator.userAgent,
-      referrer: document.referrer || ''
-    };
-  }
+  let authFailedCount = 0;
+  let currentStoreName = '';
+  let pageViewLogged = false;
 
   function logEvent(payload) {
     if (SHEETS_ENDPOINT.indexOf('TODO') !== -1) {
       console.log('[logEvent] (endpoint not configured)', payload);
       return;
     }
+    payload.session_id = sessionId;
+    payload.variant = VARIANT;
     try {
       fetch(SHEETS_ENDPOINT, {
         method: 'POST',
@@ -1611,9 +1608,27 @@
         body: JSON.stringify(payload)
       });
     } catch (err) {
-      // fire-and-forget: 실패해도 UX 흐름 영향 없음
+      // fire-and-forget
     }
   }
+
+  // 페이지 진입 로깅 — store_name 들어온 시점에 발사 (fetch 안 되면 1.5초 후 fallback)
+  function logPageView() {
+    if (pageViewLogged) return;
+    pageViewLogged = true;
+    logEvent({
+      page_view_time: new Date().toISOString(),
+      store_id: urlParams.get('id') || '',
+      store_name: currentStoreName,
+      referrer: window.location.href + (document.referrer ? ' | ref=' + document.referrer : ''),
+      user_agent: navigator.userAgent
+    });
+  }
+  setTimeout(logPageView, 1500);
+  window.__logPageViewWhenReady = function (storeName) {
+    currentStoreName = storeName || '';
+    logPageView();
+  };
 
   const app = document.getElementById('app');
   const appBar = document.getElementById('appBar');
@@ -1676,6 +1691,9 @@
       if (!consentChecked) {
         consentError.classList.add('field__error--show');
       }
+      // 인증 실패 카운트 누적
+      authFailedCount++;
+      logEvent({ auth_failed_count: authFailedCount });
       return;
     }
 
@@ -1685,12 +1703,14 @@
 
     // 인증 성공 이벤트 로깅
     authSuccessTime = Date.now();
-    logEvent(Object.assign({}, getCommonMeta(), {
-      event_type: 'auth_success',
-      phone_number: phoneInput.value,
-      consent_marketing: consentInput.checked,
-      time_to_auth_ms: authSuccessTime - pageEnterTime
-    }));
+    logEvent({
+      store_id: urlParams.get('id') || '',
+      store_name: currentStoreName,
+      phone: phoneInput.value,
+      consent: consentInput.checked ? '동의' : '미동의',
+      auth_success_time: new Date().toISOString(),
+      auth_duration_sec: Math.round((authSuccessTime - pageEnterTime) / 1000)
+    });
 
     setTimeout(function () {
       loadingOverlay.setAttribute('hidden', '');
@@ -1717,12 +1737,11 @@
 
   inquiryBtn.addEventListener('click', function () {
     const now = Date.now();
-    logEvent(Object.assign({}, getCommonMeta(), {
-      event_type: 'inquiry_click',
-      phone_number: phoneInput.value,
-      time_to_inquiry_ms: authSuccessTime ? (now - authSuccessTime) : '',
-      time_total_ms: now - pageEnterTime
-    }));
+    logEvent({
+      inquiry_click_time: new Date().toISOString(),
+      inquiry_duration_sec: authSuccessTime ? Math.round((now - authSuccessTime) / 1000) : '',
+      total_duration_sec: Math.round((now - pageEnterTime) / 1000)
+    });
 
     loadingText.textContent = '패스오더 안내를 준비하고 있습니다';
     loadingOverlay.removeAttribute('hidden');
@@ -1757,10 +1776,10 @@
 
   notOwnerConfirm.addEventListener('click', function () {
     closeNotOwnerModal();
-    logEvent(Object.assign({}, getCommonMeta(), {
-      event_type: 'not_owner_report',
-      time_to_report_ms: Date.now() - pageEnterTime
-    }));
+    logEvent({
+      not_owner_time: new Date().toISOString(),
+      total_duration_sec: Math.round((Date.now() - pageEnterTime) / 1000)
+    });
 
     loadingText.textContent = '확인하고 있습니다';
     loadingOverlay.removeAttribute('hidden');
@@ -1871,12 +1890,13 @@
     }
 
     // 로깅 (먼저)
-    logEvent(Object.assign({}, getCommonMeta(), {
-      event_type: 'reply_submit',
-      phone_number: phoneInput.value,
+    const replySubmitTime = Date.now();
+    logEvent({
       reply_option: value,
-      reply_text: replyText
-    }));
+      reply_text: replyText,
+      reply_submit_time: new Date().toISOString(),
+      reply_duration_sec: authSuccessTime ? Math.round((replySubmitTime - authSuccessTime) / 1000) : ''
+    });
 
     // 로딩 노출 (2초)
     loadingText.textContent = '고객에게 답변을 전달하고 있습니다';
@@ -2130,6 +2150,11 @@
 
     // 카드 교체 후 캐러셀 재초기화
     initCarousel();
+
+    // 페이지 진입 로깅 (store_name 채워진 시점에 발사)
+    if (window.__logPageViewWhenReady) {
+      window.__logPageViewWhenReady(data.store_name);
+    }
   }
 
   // URL 파라미터 기반 데이터 로딩 (fire-and-forget)
