@@ -1916,11 +1916,11 @@
 
       showToast('고객에게 답변이 전달되었습니다');
 
-      // ③ 답변 완료 후 도입 권유 영역으로 부드러운 스크롤 (conversion 핵심 구간)
+      // ③ 답변 완료 후 답변 영역(reply-section)으로 스크롤 — 답변 완료 확인이 메인
+      //    도입 권유(cta-content)는 그 아래로 자연스럽게 흐름
       setTimeout(function () {
-        const ctaContent = document.querySelector('.cta-content');
-        if (ctaContent) {
-          ctaContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (replySection) {
+          replySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 400);
     }, 2000);
