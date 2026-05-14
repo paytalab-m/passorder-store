@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>패스오더 — 매장에 접수된 고객 컴플레인</title>
+<!-- 변형 라우팅: v=b 면 즉시 B안 페이지로 이동 -->
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('v') === 'b') {
+    params.delete('v');
+    var qs = params.toString();
+    window.location.replace('index-b.html' + (qs ? '?' + qs : ''));
+  }
+})();
+</script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/[email protected]/dist/web/static/pretendard.min.css">
+<style>
+  :root {
+    --orange: #ed7b41;
+    --orange-press: #d96a30;
+    --orange-deep: #c9591f;
+    --orange-soft: #fef1e8;
+
+    --navy: #00294b;
+
+    --ink: #001a30;
+    --ink-2: #2c3e54;
+    --ink-3: #5a6b80;
+    --ink-4: #95a1b3;
+    --ink-5: #c5cbd4;
+
+    --surface: #ffffff;
+    --surface-soft: #f4f5f7;
+    --surface-cream: #faf6f0;
+    --hairline: rgba(0, 26, 48, 0.07);
+    --hairline-strong: rgba(0, 26, 48, 0.14);
+
+    --shadow-btn: 0 10px 26px rgba(237, 123, 65, 0.36), 0 2px 6px rgba(237, 123, 65, 0.20);
+    --shadow-btn-press: 0 4px 12px rgba(237, 123, 65, 0.26);
+    --shadow-footer: 0 -8px 24px rgba(0, 26, 48, 0.04);
+    --shadow-chip: 0 6px 18px rgba(0, 26, 48, 0.10), 0 1px 3px rgba(0, 26, 48, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    color: var(--ink);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'tnum';
+    letter-spacing: -0.3px;
+  }
+
+  body {
+    background: #e8eaee;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    animation: pageIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes pageIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .app-bar {
+    height: calc(env(safe-area-inset-top) + 28px);
+    padding-top: env(safe-area-inset-top);
+    background: var(--surface);
+    border-bottom: 1px solid transparent;
+    flex-shrink: 0;
+    transition: border-color 0.2s;
+    z-index: 10;
+  }
+  .app-bar--scrolled { border-bottom-color: var(--hairline); }
+
+  .app-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .hero { padding: 16px 24px 32px; }
+  .hero__title {
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1.32;
+    color: var(--ink);
+    letter-spacing: -0.9px;
+    word-break: keep-all;
+  }
+  .hero__title em { font-style: normal; color: var(--orange); }
+
+  .section {
+    padding: 24px 24px 28px;
+    border-top: 1px solid var(--hairline);
+  }
+  /* 섹션 라벨 — 아이콘 + 텍스트 */
+  .section__label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    margin-bottom: 18px;
+  }
+  .section__label-icon {
+    width: 26px;
+    height: 26px;
+    background: var(--orange-soft);
+    color: var(--orange-deep);
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .section__label-icon svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* ===== 작성자 라인 (아이콘 + 텍스트) ===== */
+  .author-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .author-line__icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--ink-4);
+  }
+  .author-line__icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .author-line__text {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+    line-height: 1.5;
+    word-break: keep-all;
+  }
+  .nickname { color: var(--ink); }
+  .count { color: var(--orange); font-weight: 800; }
+  .normal { font-weight: 500; color: var(--ink-2); }
+
+  /* ===== 매장 컨텍스트 노트 (결과 화면 only) ===== */
+  .store-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    background: var(--surface-soft);
+    border-radius: 10px;
+  }
+  .store-note__icon {
+    width: 14px;
+    height: 14px;
+    color: var(--ink-4);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .store-note__text {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    line-height: 1.6;
+    letter-spacing: -0.2px;
+    word-break: keep-all;
+    margin: 0;
+  }
+  .store-note__text strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  /* ===== 노션 스타일 키워드 칩 ===== */
+  .kchip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.45;
+    white-space: nowrap;
+  }
+  .kchip--red    { background: #fbe4e4; color: #c4554d; }
+  .kchip--orange { background: #faebdd; color: #d9730d; }
+  .kchip--blue   { background: #ddebf1; color: #337ea9; }
+  .kchip--green  { background: #ddedea; color: #448361; }
+
+  /* State A: 작성자 라인 아래 키워드 요약 */
+  .keyword-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 12px;
+    padding: 4px 0 4px;
+  }
+  .keyword-summary__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .kchip-count {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-2);
+    letter-spacing: -0.2px;
+  }
+
+  /* State B: 카드 닉네임 아래 키워드 칩 */
+  .complaint-card__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+  }
+
+  /* ===== 안내문 — 차분한 그레이 노티 + 아이콘 ===== */
+  .notice {
+    margin-top: 22px;
+    padding: 16px;
+    background: var(--surface-soft);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .notice__icon {
+    width: 18px;
+    height: 18px;
+    color: var(--orange);
+    flex-shrink: 0;
+  }
+  .notice__text {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    line-height: 1.65;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    word-break: keep-all;
+    text-align: center;
+    margin: 0;
+  }
+
+  /* ===== Message block (단일 컴플레인 카드) ===== */
+  .message {
+    margin-top: 12px;
+    position: relative;
+  }
+
+  .complaint-card {
+    background: var(--surface);
+    border: 1px solid rgba(0, 26, 48, 0.06);
+    border-radius: 16px;
+    padding: 24px 22px 26px;
+    box-shadow:
+      0 1px 2px rgba(0, 26, 48, 0.04),
+      0 10px 28px rgba(0, 26, 48, 0.05);
+    /* ② 카드 높이 통일 — 본문이 짧아도 일정한 높이 유지 */
+    display: flex;
+    flex-direction: column;
+    min-height: 240px;
+  }
+
+  .complaint-card__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--surface-soft);
+    color: var(--ink-3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar svg {
+    width: 34px;
+    height: 34px;
+    margin-top: 5px;
+  }
+
+  .complaint-card__author {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .complaint-card__name {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.4px;
+  }
+  .complaint-card__time {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-4);
+    letter-spacing: -0.2px;
+  }
+
+  .complaint-card__body {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--ink-2);
+    word-break: keep-all;
+    letter-spacing: -0.3px;
+    font-weight: 500;
+    transition: filter 0.5s ease;
+    flex: 1; /* 카드 내에서 본문이 남은 공간 채워 카드 높이 통일 */
+  }
+  .message--locked .complaint-card__body {
+    filter: blur(6px);
+    user-select: none;
+    pointer-events: none;
+  }
+
+  /* ④ 잠금 카드 탭 가능 표시 (인증 폼 스크롤 트리거) */
+  .message--locked {
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .message--locked:active {
+    transform: scale(0.99);
+  }
+
+  /* 잠금 칩 */
+  .message__chip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 16px 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--hairline-strong);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.2px;
+    box-shadow: 0 10px 28px rgba(0, 26, 48, 0.15), 0 2px 6px rgba(0, 26, 48, 0.08);
+    transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+    white-space: nowrap;
+    z-index: 2;
+  }
+  .message__chip svg {
+    width: 13px;
+    height: 13px;
+    stroke: var(--orange);
+  }
+  .message:not(.message--locked) .message__chip {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+    pointer-events: none;
+  }
+
+  /* ===== Complaint carousel (state B) ===== */
+  .complaint-carousel {
+    margin-top: 12px;
+  }
+  .complaint-carousel__track {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .complaint-carousel__track:active { cursor: grabbing; }
+  .complaint-carousel__track::-webkit-scrollbar { display: none; }
+
+  /* ③ 카드 폭 줄여서 다음 카드 peek 명확하게 (44px 노출) */
+  .complaint-carousel__track .complaint-card {
+    flex: 0 0 calc(100% - 56px);
+    scroll-snap-align: start;
+  }
+
+  /* ① 단일 카드 모드: 캐러셀 동작 비활성화, 카드 full width */
+  .complaint-carousel.--single .complaint-carousel__track {
+    overflow: hidden;
+    cursor: default;
+    scroll-snap-type: none;
+  }
+  .complaint-carousel.--single .complaint-carousel__track .complaint-card {
+    flex: 0 0 100%;
+  }
+  .complaint-carousel.--single .complaint-carousel__dots {
+    display: none;
+  }
+
+  .complaint-carousel__dots {
+    display: flex;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 18px;
+  }
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ink-5);
+    border: none;
+    padding: 0;
+    cursor: default;
+    transition: width 0.25s ease, background 0.25s ease, border-radius 0.25s ease;
+  }
+  .dot--active {
+    background: var(--orange);
+    width: 22px;
+    border-radius: 3px;
+  }
+
+  .verify-hint {
+    font-size: 13.5px;
+    color: var(--ink-3);
+    margin-bottom: 18px;
+    font-weight: 500;
+    letter-spacing: -0.2px;
+    line-height: 1.5;
+  }
+
+  .field__label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+    display: block;
+    letter-spacing: -0.1px;
+  }
+  .field__input {
+    width: 100%;
+    height: 56px;
+    padding: 0 18px;
+    background: var(--surface-soft);
+    border: 1.5px solid transparent;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--ink);
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+    letter-spacing: -0.3px;
+  }
+  .field__input:focus {
+    outline: none;
+    border-color: var(--navy);
+    background: var(--surface);
+  }
+  .field__input::placeholder { color: var(--ink-5); font-weight: 600; }
+  .field__input--error {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.04);
+  }
+  .field__error {
+    font-size: 12.5px;
+    color: #ef4444;
+    margin-top: 8px;
+    font-weight: 600;
+    display: none;
+    letter-spacing: -0.1px;
+  }
+  .field__error--show { display: block; }
+  .field__error--consent {
+    margin-top: 10px;
+    margin-left: 33px;
+  }
+
+  .checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 18px 2px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .checkbox__input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border: 1.5px solid var(--ink-5);
+    border-radius: 6px;
+    flex-shrink: 0;
+    background: var(--surface);
+    position: relative;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 1px;
+  }
+  .checkbox__input:checked { background: var(--orange); border-color: var(--orange); }
+  .checkbox__input:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px; top: 2px;
+    width: 6px; height: 11px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  .checkbox__label {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    flex: 1;
+    font-weight: 500;
+    letter-spacing: -0.2px;
+  }
+  .checkbox__label a {
+    color: var(--ink-4);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    margin-left: 4px;
+  }
+
+  .cta-content {
+    padding: 28px 24px 32px;
+    border-top: 1px solid var(--hairline);
+  }
+  .cta-content__title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.4;
+    letter-spacing: -0.5px;
+    margin-bottom: 18px;
+    word-break: keep-all;
+  }
+  .cta-content__title em { font-style: normal; color: var(--orange); }
+
+  .cta-content__intro {
+    margin-bottom: 22px;
+  }
+  .cta-content__quote {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--orange-deep);
+    line-height: 1.5;
+    letter-spacing: -0.3px;
+    margin-bottom: 8px;
+    word-break: keep-all;
+  }
+  .cta-content__desc {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    line-height: 1.7;
+    letter-spacing: -0.2px;
+    word-break: keep-all;
+  }
+
+  .features {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .feature {
+    background: var(--surface);
+    border: 1px solid rgba(0, 26, 48, 0.06);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+    box-shadow:
+      0 1px 2px rgba(0, 26, 48, 0.04),
+      0 8px 20px rgba(0, 26, 48, 0.04);
+  }
+  .feature__head {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 10px;
+  }
+  .feature__num {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--orange-soft);
+    color: var(--orange-deep);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+  .feature__title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+  .feature__desc {
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+    font-weight: 500;
+    letter-spacing: -0.2px;
+    word-break: keep-all;
+  }
+
+  .app-footer {
+    flex-shrink: 0;
+    background: var(--surface);
+    padding: 12px 20px calc(env(safe-area-inset-bottom) + 14px);
+    border-top: 1px solid var(--hairline);
+    box-shadow: var(--shadow-footer);
+    z-index: 5;
+  }
+  .btn-primary {
+    width: 100%;
+    height: 58px;
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 16.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.08s, box-shadow 0.2s;
+    font-family: inherit;
+    letter-spacing: -0.3px;
+    box-shadow: var(--shadow-btn);
+  }
+  .btn-primary:active {
+    background: var(--orange-press);
+    transform: scale(0.985);
+    box-shadow: var(--shadow-btn-press);
+  }
+  .btn-primary:disabled,
+  .btn-primary[aria-disabled="true"] {
+    background: #e5e8ed;
+    color: #95a1b3;
+    box-shadow: none;
+    cursor: pointer;
+  }
+  .btn-primary:disabled:active,
+  .btn-primary[aria-disabled="true"]:active {
+    background: #e5e8ed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ====== Page footer (회사 정보 / 법적 안내) ====== */
+  .page-footer {
+    margin-top: 24px;
+    padding: 28px 24px 36px;
+    background: var(--surface-soft);
+    border-top: 1px solid var(--hairline);
+  }
+  .page-footer__logo {
+    display: block;
+    height: 26px;
+    width: auto;
+    margin-bottom: 18px;
+    opacity: 0.85;
+    mix-blend-mode: multiply;
+  }
+  .page-footer__info {
+    margin-bottom: 18px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .page-footer__info p {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ink-4);
+    line-height: 1.75;
+    letter-spacing: -0.2px;
+    word-break: keep-all;
+    margin: 0;
+  }
+  .page-footer__info a {
+    color: var(--ink-4);
+    text-decoration: none;
+  }
+  .page-footer__info a:active { text-decoration: underline; }
+
+  .page-footer__copyright {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ink-5);
+    letter-spacing: 0.4px;
+    margin: 0;
+  }
+
+  [data-show-on] { display: none; }
+  #app[data-state="initial"] [data-show-on="initial"] { display: block; }
+  #app[data-state="revealed"] [data-show-on="revealed"] {
+    display: block;
+    animation: stateIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @keyframes stateIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ====== Completion (state: completed / not_owner) ====== */
+  .completion {
+    min-height: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 32px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+  .completion__icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: var(--orange);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 28px;
+    box-shadow: 0 12px 28px rgba(237, 123, 65, 0.32), 0 2px 6px rgba(237, 123, 65, 0.18);
+  }
+  .completion__icon--apology {
+    background: var(--navy);
+    box-shadow: 0 12px 28px rgba(0, 41, 75, 0.25), 0 2px 6px rgba(0, 41, 75, 0.14);
+  }
+  .completion__icon svg {
+    width: 38px;
+    height: 38px;
+  }
+  .completion__text {
+    font-size: 15.5px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.7;
+    letter-spacing: -0.3px;
+    word-break: keep-all;
+  }
+  #app[data-state="completed"] [data-show-on="completed"],
+  #app[data-state="not_owner"] [data-show-on="not_owner"] {
+    display: flex;
+    animation: stateIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* completed / not_owner 상태에서 다른 영역 모두 숨김 */
+  #app[data-state="completed"] .hero,
+  #app[data-state="completed"] .section,
+  #app[data-state="completed"] .cta-content,
+  #app[data-state="completed"] .page-footer,
+  #app[data-state="completed"] .app-footer,
+  #app[data-state="not_owner"] .hero,
+  #app[data-state="not_owner"] .section,
+  #app[data-state="not_owner"] .cta-content,
+  #app[data-state="not_owner"] .page-footer,
+  #app[data-state="not_owner"] .app-footer {
+    display: none;
+  }
+
+  /* ====== 텍스트형 버튼 (보조 옵션) ====== */
+  .text-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    padding: 14px 0 4px;
+    margin-top: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-4);
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: color 0.15s;
+  }
+  .text-btn__arrow {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1;
+    margin-left: 1px;
+    margin-top: -1px;
+  }
+  .text-btn:active { color: var(--ink-3); }
+
+  /* ====== Loading overlay ====== */
+  .loading {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    z-index: 100;
+    animation: loadingIn 0.22s ease-out;
+  }
+  .loading[hidden] { display: none; }
+
+  @keyframes loadingIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .loading__spinner {
+    width: 44px;
+    height: 44px;
+    border: 3.5px solid rgba(0, 26, 48, 0.12);
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading__text {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.3px;
+  }
+
+  /* ====== Confirm modal ====== */
+  .modal {
+    position: absolute;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: modalIn 0.18s ease-out;
+  }
+  .modal[hidden] { display: none; }
+  .modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 26, 48, 0.45);
+  }
+  .modal__card {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 26px 22px 18px;
+    box-shadow: 0 24px 60px rgba(0, 26, 48, 0.32);
+    animation: modalCardIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .modal__title {
+    font-size: 16.5px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: -0.4px;
+    text-align: center;
+    margin-bottom: 8px;
+    word-break: keep-all;
+  }
+  .modal__desc {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    text-align: center;
+    line-height: 1.55;
+    letter-spacing: -0.2px;
+    margin-bottom: 22px;
+    word-break: keep-all;
+  }
+  .modal__actions {
+    display: flex;
+    gap: 8px;
+  }
+  .modal__btn {
+    flex: 1;
+    height: 48px;
+    border-radius: 12px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -0.3px;
+    transition: background 0.15s, transform 0.08s;
+  }
+  .modal__btn:active { transform: scale(0.98); }
+  .modal__btn--cancel {
+    background: var(--surface-soft);
+    color: var(--ink-2);
+  }
+  .modal__btn--cancel:active { background: #e5e8ed; }
+  .modal__btn--confirm {
+    background: var(--navy);
+    color: #fff;
+  }
+  .modal__btn--confirm:active { background: #001a30; }
+
+  @keyframes modalIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes modalCardIn {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app" data-state="initial">
+
+  <header class="app-bar" id="appBar"></header>
+
+  <main class="app-body" id="appBody">
+
+    <section class="hero">
+      <h1 class="hero__title">
+        <em id="storeName">스타벅스 강남점</em>에<br>고객 컴플레인이 접수됐어요.
+      </h1>
+    </section>
+
+    <section class="section">
+      <h2 class="section__label">
+        <span class="section__label-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+          </svg>
+        </span>
+        고객 컴플레인
+      </h2>
+
+      <div class="author-line">
+        <span class="author-line__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+          </svg>
+        </span>
+        <span class="author-line__text">
+          <span class="nickname" id="complaintAuthor">김커피 님</span><span class="extras" id="complaintExtras"> 외 <span class="count" id="complaintCount">2명</span></span><span class="normal">이 컴플레인을 남겼습니다</span>
+        </span>
+      </div>
+
+      <!-- 결과 화면에서만 노출되는 매장 컨텍스트 노트 -->
+      <div data-show-on="revealed">
+        <div class="store-note">
+          <svg class="store-note__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+          <p class="store-note__text">
+            실제 패스오더 앱에 등록된 <strong id="storeNameInNote">스타벅스 강남점</strong>에 고객분들이 직접 남겨주신 컴플레인 입니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- 첫 화면에만 노출되는 키워드 요약 -->
+      <div data-show-on="initial">
+        <div class="keyword-summary" id="keywordSummary">
+          <span class="keyword-summary__item">
+            <span class="kchip kchip--red">긴 대기 시간</span>
+            <span class="kchip-count">2건</span>
+          </span>
+          <span class="keyword-summary__item">
+            <span class="kchip kchip--orange">불편한 주문</span>
+            <span class="kchip-count">1건</span>
+          </span>
+          <span class="keyword-summary__item">
+            <span class="kchip kchip--blue">시간 낭비</span>
+            <span class="kchip-count">1건</span>
+          </span>
+          <span class="keyword-summary__item">
+            <span class="kchip kchip--green">혜택 부족</span>
+            <span class="kchip-count">1건</span>
+          </span>
+        </div>
+      </div>
+
+      <div data-show-on="initial">
+        <div class="notice">
+          <svg class="notice__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+          <p class="notice__text">
+            패스오더 도입을 요청한 고객들이 매장에 남긴 불편 사항입니다.<br>
+            사장님 본인 인증 후 확인할 수 있습니다.
+          </p>
+        </div>
+      </div>
+
+      <div class="message message--locked" id="message" data-show-on="initial">
+        <div class="complaint-card">
+          <div class="complaint-card__head">
+            <span class="avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>
+              </svg>
+            </span>
+            <div class="complaint-card__author">
+              <div class="complaint-card__name">김커피 님</div>
+              <div class="complaint-card__time">2025년 11월 12일 14시 30분</div>
+            </div>
+          </div>
+          <p class="complaint-card__body">점심시간에 들렀는데 사람이 너무 많아서 한참 기다렸어요. 미리 주문할 수 있는 시스템이 있으면 좋겠어요. 다른 매장은 다 되던데 여기만 안 돼서 아쉽습니다.</p>
+        </div>
+
+        <span class="message__chip" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="11" width="14" height="9" rx="2"/>
+            <path d="M8 11V8a4 4 0 0 1 8 0v3"/>
+          </svg>
+          사장님 본인 인증 후 확인할 수 있습니다
+        </span>
+      </div>
+
+      <!-- State B: 컴플레인 캐러셀 (가로 스크롤 + 페이지 인디케이터) -->
+      <div class="complaint-carousel" data-show-on="revealed">
+        <div class="complaint-carousel__track" id="carouselTrack">
+          <div class="complaint-card">
+            <div class="complaint-card__head">
+              <span class="avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>
+                </svg>
+              </span>
+              <div class="complaint-card__author">
+                <div class="complaint-card__name">김커피 님</div>
+                <div class="complaint-card__chips">
+                  <span class="kchip kchip--red">긴 대기 시간</span>
+                  <span class="kchip kchip--blue">시간 낭비</span>
+                </div>
+                <div class="complaint-card__time">2025년 11월 12일 14시 30분</div>
+              </div>
+            </div>
+            <p class="complaint-card__body">점심시간에 들렀는데 사람이 너무 많아서 한참 기다렸어요. 미리 주문할 수 있는 시스템이 있으면 좋겠어요. 다른 매장은 다 되던데 여기만 안 돼서 아쉽습니다.</p>
+          </div>
+
+          <div class="complaint-card">
+            <div class="complaint-card__head">
+              <span class="avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>
+                </svg>
+              </span>
+              <div class="complaint-card__author">
+                <div class="complaint-card__name">박지영 님</div>
+                <div class="complaint-card__chips">
+                  <span class="kchip kchip--orange">불편한 주문</span>
+                </div>
+                <div class="complaint-card__time">2025년 11월 11일 08시 15분</div>
+              </div>
+            </div>
+            <p class="complaint-card__body">미리 주문할 수 있는 시스템이 없어서 출근 전에 들르기 힘들어요. 빠른 픽업이 있으면 좋겠습니다.</p>
+          </div>
+
+          <div class="complaint-card">
+            <div class="complaint-card__head">
+              <span class="avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>
+                </svg>
+              </span>
+              <div class="complaint-card__author">
+                <div class="complaint-card__name">이수영 님</div>
+                <div class="complaint-card__chips">
+                  <span class="kchip kchip--red">긴 대기 시간</span>
+                  <span class="kchip kchip--green">혜택 부족</span>
+                </div>
+                <div class="complaint-card__time">2025년 11월 10일 19시 45분</div>
+              </div>
+            </div>
+            <p class="complaint-card__body">저녁에 갔는데 기다리는 시간이 너무 길어서 답답했어요.</p>
+          </div>
+        </div>
+
+        <div class="complaint-carousel__dots" id="carouselDots">
+          <button class="dot dot--active" type="button" data-index="0" aria-label="첫 번째 컴플레인"></button>
+          <button class="dot" type="button" data-index="1" aria-label="두 번째 컴플레인"></button>
+          <button class="dot" type="button" data-index="2" aria-label="세 번째 컴플레인"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" data-show-on="initial">
+      <h2 class="section__label">
+        <span class="section__label-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2L4 5v6.1c0 5 3.4 9.6 8 10.9 4.6-1.3 8-5.9 8-10.9V5l-8-3zm-1 14l-4-4 1.4-1.4 2.6 2.6 5.6-5.6L18 9l-7 7z"/>
+          </svg>
+        </span>
+        사장님 본인 인증
+      </h2>
+      <p class="verify-hint">휴대폰 번호로 사장님 본인 인증을 진행해주세요.</p>
+
+      <form id="verifyForm" novalidate>
+        <div class="field">
+          <label class="field__label" for="phone">휴대폰 번호</label>
+          <input
+            type="tel"
+            id="phone"
+            class="field__input"
+            placeholder="010-0000-0000"
+            inputmode="tel"
+            maxlength="13"
+            autocomplete="tel"
+            required
+          >
+          <p class="field__error" id="phoneError">휴대폰 번호를 입력해 주세요.</p>
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" class="checkbox__input" id="consent" required>
+          <span class="checkbox__label">
+            본인 인증 정보 처리 및 마케팅 정보 수신에 동의 합니다 (필수)
+          </span>
+        </label>
+        <p class="field__error field__error--consent" id="consentError">위의 내용에 동의가 필요합니다.</p>
+      </form>
+
+      <button class="text-btn" id="notOwnerBtn" type="button">
+        혹시 해당 매장을 운영하시는 사장님이 아니신가요?
+        <span class="text-btn__arrow" aria-hidden="true">›</span>
+      </button>
+    </section>
+
+    <section class="cta-content" data-show-on="revealed">
+      <h2 class="cta-content__title">
+        이런 컴플레인이 반복되지 않으려면?<br>
+        패스오더 사용이 <em>필수</em>입니다.
+      </h2>
+
+      <div class="cta-content__intro">
+        <p class="cta-content__quote">“900만 유저가 사용하는 카페 전용 주문 앱”</p>
+        <p class="cta-content__desc">
+          패스오더는 고객이 매장에 방문하기 전 미리 주문 · 결제 · 적립까지 한 번에 가능하도록 해주는 서비스입니다.
+        </p>
+      </div>
+
+      <div class="features">
+        <div class="feature">
+          <div class="feature__head">
+            <span class="feature__num">01</span>
+            <h3 class="feature__title">자동 주문 접수</h3>
+          </div>
+          <p class="feature__desc">고객이 앱을 통해 주문 · 결제 · 적립을 진행합니다. 매장에서는 번거로운 고객 응대 없이 음료만 제조하면 됩니다.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature__head">
+            <span class="feature__num">02</span>
+            <h3 class="feature__title">조리 완료 알림</h3>
+          </div>
+          <p class="feature__desc">음료 제조 후, 별도 알림이나 진동벨 없이 고객의 휴대폰에 자동으로 조리 완료 알림이 전송됩니다.</p>
+        </div>
+
+        <div class="feature">
+          <div class="feature__head">
+            <span class="feature__num">03</span>
+            <h3 class="feature__title">자동 적립</h3>
+          </div>
+          <p class="feature__desc">고객이 음료를 수령한 후, 패스오더 앱에서 자동으로 적립됩니다. 번거로운 연락처 입력이나 종이 쿠폰이 필요 없습니다.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 마무리 화면 (state: completed) -->
+    <section class="completion" data-show-on="completed">
+      <div class="completion__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5 12 10 17 19 7"/>
+        </svg>
+      </div>
+      <p class="completion__text">
+        패스오더에서 사장님께 패스오더 안내를 위해<br>
+        순차적으로 연락드리겠습니다.
+      </p>
+    </section>
+
+    <!-- 잘못 전달 안내 화면 (state: not_owner) -->
+    <section class="completion" data-show-on="not_owner">
+      <div class="completion__icon completion__icon--apology">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2"/>
+          <polyline points="3 7 12 13 21 7"/>
+        </svg>
+      </div>
+      <p class="completion__text">
+        메시지가 잘못 전달되었습니다.<br>
+        불편을 드려 죄송합니다.
+      </p>
+    </section>
+
+    <!-- Page footer (회사 정보 / 법적 안내) -->
+    <footer class="page-footer">
+      <img class="page-footer__logo" src="passorder_logo.jpg" alt="페이타랩">
+
+      <div class="page-footer__info">
+        <p>(주)페이타랩 | 대표 곽수용 | 사업자등록번호 452-87-01123</p>
+        <p>통신판매업 등록번호 2018-부산해운대-0457</p>
+        <p>서울특별시 강남구 영동대로85길 34 스파크플러스 삼성2호점 6층</p>
+        <p>부산 부산진구 서면로 39, KT&amp;G 상상마당 6층</p>
+        <p>고객센터 <a href="tel:1644-8725">1644-8725</a> | <a href="mailto:help@passorder.co.kr">help@passorder.co.kr</a></p>
+      </div>
+
+      <p class="page-footer__copyright">©2019 PAYTA LAB CORP. ALL RIGHT RESERVED</p>
+    </footer>
+
+  </main>
+
+  <footer class="app-footer">
+    <button class="btn-primary" id="submitBtn" data-show-on="initial" aria-disabled="true">고객 컴플레인 확인하기</button>
+    <button class="btn-primary" id="inquiryBtn" data-show-on="revealed">패스오더 자세히 알아보기</button>
+  </footer>
+
+  <!-- Loading overlay -->
+  <div class="loading" id="loadingOverlay" hidden>
+    <div class="loading__spinner" aria-hidden="true"></div>
+    <p class="loading__text">사장님 본인 인증 중입니다</p>
+  </div>
+
+  <!-- Confirm modal — 사장님이 아닌 경우 -->
+  <div class="modal" id="notOwnerModal" hidden role="dialog" aria-modal="true">
+    <div class="modal__overlay"></div>
+    <div class="modal__card">
+      <h3 class="modal__title">정말 사장님이 아니신가요?</h3>
+      <p class="modal__desc">확인을 누르면 인증 화면이 종료됩니다.</p>
+      <div class="modal__actions">
+        <button class="modal__btn modal__btn--cancel" id="notOwnerCancel" type="button">취소</button>
+        <button class="modal__btn modal__btn--confirm" id="notOwnerConfirm" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  // ===== 데이터 로깅 (Google Sheets) =====
+  const SHEETS_ENDPOINT = 'TODO_REPLACE_WITH_APPS_SCRIPT_URL';
+
+  const sessionId = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  const urlParams = new URLSearchParams(window.location.search);
+  const pageEnterTime = Date.now();
+  let authSuccessTime = null;
+
+  function getCommonMeta() {
+    return {
+      event_timestamp: new Date().toISOString(),
+      store_identifier: urlParams.get('store') || '',
+      complaint_token: urlParams.get('token') || '',
+      session_id: sessionId,
+      variant: urlParams.get('variant') || 'A',
+      user_agent: navigator.userAgent,
+      referrer: document.referrer || ''
+    };
+  }
+
+  function logEvent(payload) {
+    if (SHEETS_ENDPOINT.indexOf('TODO') !== -1) {
+      console.log('[logEvent] (endpoint not configured)', payload);
+      return;
+    }
+    try {
+      fetch(SHEETS_ENDPOINT, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      // fire-and-forget: 실패해도 UX 흐름 영향 없음
+    }
+  }
+
+  const app = document.getElementById('app');
+  const appBar = document.getElementById('appBar');
+  const appBody = document.getElementById('appBody');
+  const phoneInput = document.getElementById('phone');
+  const phoneError = document.getElementById('phoneError');
+  const consentInput = document.getElementById('consent');
+  const consentError = document.getElementById('consentError');
+  const message = document.getElementById('message');
+  const submitBtn = document.getElementById('submitBtn');
+  const inquiryBtn = document.getElementById('inquiryBtn');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+  const loadingText = loadingOverlay.querySelector('.loading__text');
+
+  appBody.addEventListener('scroll', function () {
+    if (appBody.scrollTop > 4) appBar.classList.add('app-bar--scrolled');
+    else appBar.classList.remove('app-bar--scrolled');
+  });
+
+  phoneInput.addEventListener('input', function (e) {
+    let v = e.target.value.replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length < 4) e.target.value = v;
+    else if (v.length < 8) e.target.value = v.slice(0, 3) + '-' + v.slice(3);
+    else e.target.value = v.slice(0, 3) + '-' + v.slice(3, 7) + '-' + v.slice(7);
+
+    // 유효해지면 에러 자동 숨김
+    if (validatePhone(e.target.value)) {
+      phoneInput.classList.remove('field__input--error');
+      phoneError.classList.remove('field__error--show');
+    }
+    updateButtonState();
+  });
+
+  consentInput.addEventListener('change', function () {
+    // 체크되면 에러 자동 숨김
+    if (consentInput.checked) {
+      consentError.classList.remove('field__error--show');
+    }
+    updateButtonState();
+  });
+
+  function validatePhone(v) { return /^010-\d{4}-\d{4}$/.test(v); }
+
+  function updateButtonState() {
+    const phoneValid = validatePhone(phoneInput.value);
+    const consentChecked = consentInput.checked;
+    submitBtn.setAttribute('aria-disabled', !(phoneValid && consentChecked));
+  }
+
+  submitBtn.addEventListener('click', function () {
+    const phoneValid = validatePhone(phoneInput.value);
+    const consentChecked = consentInput.checked;
+
+    if (!phoneValid || !consentChecked) {
+      // 비활성 상태 클릭 — 미충족 항목 에러 표시
+      if (!phoneValid) {
+        phoneInput.classList.add('field__input--error');
+        phoneError.classList.add('field__error--show');
+      }
+      if (!consentChecked) {
+        consentError.classList.add('field__error--show');
+      }
+      return;
+    }
+
+    // 인증 진행 — 로딩 노출 후 2초 뒤 전환
+    loadingText.textContent = '사장님 본인 인증 중입니다';
+    loadingOverlay.removeAttribute('hidden');
+
+    // 인증 성공 이벤트 로깅
+    authSuccessTime = Date.now();
+    logEvent(Object.assign({}, getCommonMeta(), {
+      event_type: 'auth_success',
+      phone_number: phoneInput.value,
+      consent_marketing: consentInput.checked,
+      time_to_auth_ms: authSuccessTime - pageEnterTime
+    }));
+
+    setTimeout(function () {
+      loadingOverlay.setAttribute('hidden', '');
+      transitionToRevealed();
+    }, 2000);
+  });
+
+  function transitionToRevealed() {
+    app.setAttribute('data-state', 'revealed');
+    message.classList.remove('message--locked');
+    setTimeout(function () {
+      appBody.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 260);
+  }
+
+  inquiryBtn.addEventListener('click', function () {
+    const now = Date.now();
+    logEvent(Object.assign({}, getCommonMeta(), {
+      event_type: 'inquiry_click',
+      phone_number: phoneInput.value,
+      time_to_inquiry_ms: authSuccessTime ? (now - authSuccessTime) : '',
+      time_total_ms: now - pageEnterTime
+    }));
+
+    loadingText.textContent = '패스오더 안내를 준비하고 있습니다';
+    loadingOverlay.removeAttribute('hidden');
+    setTimeout(function () {
+      loadingOverlay.setAttribute('hidden', '');
+      app.setAttribute('data-state', 'completed');
+      setTimeout(function () {
+        appBody.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 50);
+
+      // 완료 화면 뒤로가기 차단
+      history.pushState(null, '', location.href);
+    }, 1500);
+  });
+
+  // "사장님이 아니신가요?" 텍스트 버튼 — 확인 모달 오픈
+  const notOwnerBtn = document.getElementById('notOwnerBtn');
+  const notOwnerModal = document.getElementById('notOwnerModal');
+  const notOwnerCancel = document.getElementById('notOwnerCancel');
+  const notOwnerConfirm = document.getElementById('notOwnerConfirm');
+  const notOwnerOverlay = notOwnerModal.querySelector('.modal__overlay');
+
+  function closeNotOwnerModal() {
+    notOwnerModal.setAttribute('hidden', '');
+  }
+
+  notOwnerBtn.addEventListener('click', function () {
+    notOwnerModal.removeAttribute('hidden');
+  });
+  notOwnerCancel.addEventListener('click', closeNotOwnerModal);
+  notOwnerOverlay.addEventListener('click', closeNotOwnerModal);
+
+  notOwnerConfirm.addEventListener('click', function () {
+    closeNotOwnerModal();
+    logEvent(Object.assign({}, getCommonMeta(), {
+      event_type: 'not_owner_report',
+      time_to_report_ms: Date.now() - pageEnterTime
+    }));
+
+    loadingText.textContent = '확인하고 있습니다';
+    loadingOverlay.removeAttribute('hidden');
+    setTimeout(function () {
+      loadingOverlay.setAttribute('hidden', '');
+      app.setAttribute('data-state', 'not_owner');
+      setTimeout(function () {
+        appBody.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 50);
+      history.pushState(null, '', location.href);
+    }, 2000);
+  });
+
+  // popstate 시 종료 상태(completed/not_owner)면 다시 push해서 뒤로가기 무효화
+  window.addEventListener('popstate', function () {
+    const s = app.getAttribute('data-state');
+    if (s === 'completed' || s === 'not_owner') {
+      history.pushState(null, '', location.href);
+    }
+  });
+
+  // ④ === 잠금 카드 탭 → 인증 폼으로 스크롤 ===
+  const messageLocked = document.getElementById('message');
+  if (messageLocked) {
+    messageLocked.addEventListener('click', function () {
+      if (!messageLocked.classList.contains('message--locked')) return;
+      const verifySection = document.querySelector('section.section[data-show-on="initial"]');
+      if (!verifySection) return;
+      verifySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(function () {
+        phoneInput.focus({ preventScroll: true });
+      }, 450);
+    });
+  }
+
+  // === 컴플레인 캐러셀 (카드 수에 따라 동적 처리) ===
+  const carouselEl = document.querySelector('.complaint-carousel');
+  const carouselTrack = document.getElementById('carouselTrack');
+  const carouselDots = document.getElementById('carouselDots');
+
+  /**
+   * 카드 수에 따라 캐러셀 모드/도트/작성자 라인 동적 설정
+   * - 1개: single 모드 (full width, 도트 숨김, 스크롤 비활성)
+   * - 2-3개: 캐러셀 모드 (peek + 도트 개수 맞춤)
+   */
+  function initCarousel() {
+    const cards = carouselTrack ? carouselTrack.querySelectorAll('.complaint-card') : [];
+    const cardCount = cards.length;
+
+    // ── 단일 카드 모드 vs 캐러셀 모드 ──
+    if (cardCount <= 1) {
+      if (carouselEl) carouselEl.classList.add('--single');
+      if (carouselDots) carouselDots.innerHTML = '';
+      return;
+    }
+
+    if (carouselEl) carouselEl.classList.remove('--single');
+
+    // ── 도트 동적 생성 (카드 개수 맞춤) ──
+    if (carouselDots) {
+      carouselDots.innerHTML = '';
+      const ordinals = ['첫', '두', '세', '네', '다섯', '여섯', '일곱', '여덟', '아홉', '열'];
+      cards.forEach(function (_, i) {
+        const dot = document.createElement('button');
+        dot.className = 'dot' + (i === 0 ? ' dot--active' : '');
+        dot.type = 'button';
+        dot.setAttribute('data-index', String(i));
+        dot.setAttribute('aria-label', (ordinals[i] || (i + 1)) + ' 번째 컴플레인');
+        carouselDots.appendChild(dot);
+      });
+    }
+  }
+
+  initCarousel();
+
+  if (carouselTrack && carouselEl && !carouselEl.classList.contains('--single')) {
+    function updateActiveDot() {
+      const firstCard = carouselTrack.querySelector('.complaint-card');
+      if (!firstCard) return;
+      const cardWidth = firstCard.offsetWidth + 12;
+      const activeIndex = Math.round(carouselTrack.scrollLeft / cardWidth);
+      const dots = carouselDots.querySelectorAll('.dot');
+      dots.forEach(function (d, i) {
+        d.classList.toggle('dot--active', i === activeIndex);
+      });
+    }
+    carouselTrack.addEventListener('scroll', updateActiveDot);
+
+    let isDragging = false, dragStartX = 0, dragStartScrollLeft = 0, dragMoved = false;
+    carouselTrack.addEventListener('mousedown', function (e) {
+      isDragging = true; dragMoved = false;
+      dragStartX = e.pageX;
+      dragStartScrollLeft = carouselTrack.scrollLeft;
+    });
+    carouselTrack.addEventListener('mousemove', function (e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const walk = e.pageX - dragStartX;
+      if (Math.abs(walk) > 3) dragMoved = true;
+      carouselTrack.scrollLeft = dragStartScrollLeft - walk;
+    });
+    function endDrag() {
+      if (!isDragging) return;
+      isDragging = false;
+      if (!dragMoved) return;
+      const firstCard = carouselTrack.querySelector('.complaint-card');
+      if (!firstCard) return;
+      const cardWidth = firstCard.offsetWidth + 12;
+      const targetIndex = Math.round(carouselTrack.scrollLeft / cardWidth);
+      carouselTrack.scrollTo({
+        left: Math.max(0, cardWidth * targetIndex),
+        behavior: 'smooth'
+      });
+    }
+    carouselTrack.addEventListener('mouseup', endDrag);
+    carouselTrack.addEventListener('mouseleave', endDrag);
+  }
+
+  // ============================================================
+  // 동적 데이터 로딩 및 렌더링
+  // ============================================================
+  const KEYWORD_COLOR = {
+    '긴 대기 시간': 'red',
+    '불편한 주문': 'orange',
+    '시간 낭비': 'blue',
+    '혜택 부족': 'green',
+  };
+
+  function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function truncateName(name, max) {
+    max = max || 6;
+    if (!name) return '';
+    // 한글 3글자 이름이면 가운데 글자 마스킹 (이*례)
+    name = maskName(name);
+    // Array.from 으로 surrogate pair (이모지) 안전하게 분할
+    var chars = Array.from(String(name));
+    if (chars.length <= max) return name;
+    return chars.slice(0, max).join('') + '…';
+  }
+
+  function maskName(name) {
+    if (!name) return '';
+    var chars = Array.from(String(name));
+    if (chars.length !== 3) return name;
+    // 한글 3글자일 때만 가운데 마스킹
+    var allHangul = chars.every(function(c) {
+      var code = c.charCodeAt(0);
+      return code >= 0xAC00 && code <= 0xD7A3;
+    });
+    return allHangul ? chars[0] + '*' + chars[2] : name;
+  }
+
+  function createComplaintCard(complaint, index) {
+    const card = document.createElement('div');
+    card.className = 'complaint-card';
+    if (index != null) card.setAttribute('data-card-id', 'card_' + (index + 1));
+
+    const chipsHtml = (complaint.keywords || []).map(function(kw) {
+      const color = KEYWORD_COLOR[kw] || 'red';
+      return '<span class="kchip kchip--' + color + '">' + escapeHtml(kw) + '</span>';
+    }).join('');
+
+    const bodyHtml = escapeHtml(complaint.body || '').replace(/\n/g, '<br>');
+
+    card.innerHTML =
+      '<div class="complaint-card__head">' +
+        '<span class="avatar" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" fill="currentColor">' +
+            '<path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/>' +
+          '</svg>' +
+        '</span>' +
+        '<div class="complaint-card__author">' +
+          '<div class="complaint-card__name">' + escapeHtml(truncateName(complaint.author || '')) + ' 님</div>' +
+          '<div class="complaint-card__chips">' + chipsHtml + '</div>' +
+          '<div class="complaint-card__time">' + escapeHtml(complaint.datetime || '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<p class="complaint-card__body">' + bodyHtml + '</p>';
+
+    return card;
+  }
+
+  function updateKeywordSummary(complaints) {
+    const container = document.getElementById('keywordSummary');
+    if (!container) return;
+    const counts = { '긴 대기 시간': 0, '불편한 주문': 0, '시간 낭비': 0, '혜택 부족': 0 };
+    complaints.forEach(function(c) {
+      (c.keywords || []).forEach(function(kw) {
+        if (counts.hasOwnProperty(kw)) counts[kw]++;
+      });
+    });
+    container.innerHTML = '';
+    Object.keys(counts).forEach(function(kw) {
+      if (counts[kw] === 0) return;
+      const color = KEYWORD_COLOR[kw];
+      const item = document.createElement('span');
+      item.className = 'keyword-summary__item';
+      item.innerHTML =
+        '<span class="kchip kchip--' + color + '">' + escapeHtml(kw) + '</span>' +
+        '<span class="kchip-count">' + counts[kw] + '건</span>';
+      container.appendChild(item);
+    });
+  }
+
+  function applyStoreData(data) {
+    if (!data) return;
+
+    // 매장명 두 곳 주입
+    if (data.store_name) {
+      const heroEl = document.getElementById('storeName');
+      const noteEl = document.getElementById('storeNameInNote');
+      if (heroEl) heroEl.textContent = data.store_name;
+      if (noteEl) noteEl.textContent = data.store_name;
+    }
+
+    const complaints = data.complaints || [];
+    const totalCount = data.total_count || complaints.length;
+
+    // 작성자 라인: "닉네임 님 외 N명이 컴플레인을 남겼습니다"
+    if (complaints.length > 0) {
+      const authorEl = document.getElementById('complaintAuthor');
+      const extrasEl = document.getElementById('complaintExtras');
+      const countEl = document.getElementById('complaintCount');
+      if (authorEl) authorEl.textContent = truncateName(complaints[0].author) + ' 님';
+      const others = Math.max(0, totalCount - 1);
+      if (others > 0) {
+        if (extrasEl) extrasEl.style.display = '';
+        if (countEl) countEl.textContent = others + '명';
+      } else {
+        if (extrasEl) extrasEl.style.display = 'none';
+      }
+    }
+
+    // 잠금 카드 (state A) — 첫 컴플레인 데이터로 채우기
+    const messageEl = document.getElementById('message');
+    if (messageEl && complaints[0]) {
+      const first = complaints[0];
+      const nameEl = messageEl.querySelector('.complaint-card__name');
+      const timeEl = messageEl.querySelector('.complaint-card__time');
+      const bodyEl = messageEl.querySelector('.complaint-card__body');
+      if (nameEl) nameEl.textContent = truncateName(first.author) + ' 님';
+      if (timeEl) timeEl.textContent = first.datetime;
+      if (bodyEl) bodyEl.innerHTML = escapeHtml(first.body || '').replace(/\n/g, '<br>');
+    }
+
+    // 캐러셀 카드 동적 생성
+    const track = document.getElementById('carouselTrack');
+    if (track && complaints.length > 0) {
+      track.innerHTML = '';
+      complaints.forEach(function(c, i) {
+        track.appendChild(createComplaintCard(c, i));
+      });
+    }
+
+    // 키워드 요약 자동 집계
+    updateKeywordSummary(complaints);
+
+    // 카드 교체 후 캐러셀 재초기화
+    initCarousel();
+  }
+
+  // URL 파라미터 기반 데이터 로딩 (fire-and-forget)
+  (async function loadStoreData() {
+    const params = new URLSearchParams(window.location.search);
+    const storeId = params.get('id');
+    if (!storeId) return; // id 없으면 하드코딩 데이터 그대로
+
+    try {
+      const res = await fetch('./data/a.json');
+      if (!res.ok) {
+        console.warn('a.json 로딩 실패');
+        return;
+      }
+      const allData = await res.json();
+      const data = allData[storeId];
+      if (!data) {
+        console.warn('매장 데이터를 찾을 수 없습니다: ' + storeId);
+        return;
+      }
+      applyStoreData(data);
+    } catch (err) {
+      console.error('데이터 로딩 실패:', err);
+    }
+  })();
+})();
+</script>
+
+</body>
+</html>
